@@ -99,7 +99,7 @@ MATCH_PCADDR = re.compile(r'0x4[0-9a-f]{7}', re.IGNORECASE)
 DEFAULT_TOOLCHAIN_PREFIX = "xtensa-esp32-elf-"
 
 def is_ascii(b):
-    if b > '\x7f':
+    if chr(b) > '\x7f':
         return False
     return True
 
@@ -107,7 +107,7 @@ def get_time_stamp():
     ct = time.time()
     local_time = time.localtime(ct)
     data_head = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
-    data_secs = (ct - long(ct)) * 1000
+    data_secs = (ct - int(ct)) * 1000
     time_stamp = "%s.%03d" % (data_head, data_secs)
     return time_stamp
 
@@ -280,9 +280,9 @@ class Monitor(object):
             self.log_file = esp_openlog(os.path.splitext(os.path.basename(self.elf_file))[0])
 
         self.translate_eol = {
-            "CRLF": lambda c: c.replace(b"\n", b"\r\n"),
-            "CR":   lambda c: c.replace(b"\n", b"\r"),
-            "LF":   lambda c: c.replace(b"\r", b"\n"),
+            "CRLF": lambda c: c.replace("\n", "\r\n"),
+            "CR":   lambda c: c.replace("\n", "\r"),
+            "LF":   lambda c: c.replace("\r", "\n"),
         }[eol]
 
         # internal state
@@ -342,7 +342,7 @@ class Monitor(object):
                 if self.enable_savelog == 'y':
                     self.log_file.write(get_time_stamp() + ":  ")
 
-            self.console.write_bytes(b)
+            self.console.write_bytes(bytes(chr(b), 'UTF-8'))
 
             if self.enable_savelog == 'y':
                 self.log_file.write(b)
@@ -352,7 +352,8 @@ class Monitor(object):
                 self._read_line = b""
                 self.next_line = True
             else:
-                self._read_line += b
+                self._read_line += bytes(chr(b), 'UTF-8')
+
             self.check_gdbstub_trigger(b)
 
     def handle_serial_input_line(self, line):
@@ -451,7 +452,7 @@ class Monitor(object):
             yellow_print(translation)
 
     def check_gdbstub_trigger(self, c):
-        self._gdb_buffer = self._gdb_buffer[-6:] + c  # keep the last 7 characters seen
+        self._gdb_buffer = self._gdb_buffer[-6:] + bytes(c)  # keep the last 7 characters seen
         m = re.match(b"\\$(T..)#(..)", self._gdb_buffer) # look for a gdb "reason" for a break
         if m is not None:
             try:
